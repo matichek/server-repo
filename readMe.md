@@ -78,6 +78,3 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 - Tailwind CSS for styling
 - Lucide for icons
 
-## Contact
-
-If you have any questions or feedback, please contact [Your Name] at [your.email@example.com].

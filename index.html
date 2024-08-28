@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4">File Upload and List</h1>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Select a file to upload
+            </label>
+            <div class="flex items-center">
+                <input type="file" id="fileInput" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100">
+                <button onclick="uploadFile()" id="uploadButton"
+                    class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                    <i data-lucide="upload" class="h-5 w-5 mr-2"></i>
+                    Upload
+                </button>
+            </div>
+        </div>
+
+        <div id="progressContainer" class="mb-4 hidden">
+            <div class="relative pt-1">
+                <div class="flex mb-2 items-center justify-between">
+                    <div>
+                        <span
+                            class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                            Uploading
+                        </span>
+                    </div>
+                    <div class="text-right">
+                        <span id="progressText" class="text-xs font-semibold inline-block text-blue-600">
+                            0%
+                        </span>
+                    </div>
+                </div>
+                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
+                    <div id="progressBar"
+                        class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="alertContainer" class="mb-4 hidden">
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <strong class="font-bold">Error!</strong>
+                <span id="alertMessage" class="block sm:inline"></span>
+            </div>
+        </div>
+
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold mb-4">File List</h2>
+            <ul id="fileList" class="bg-white rounded-lg border border-gray-200 w-full text-gray-900">
+                <!-- File list items will be inserted here -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000'; // Adjust this port if your server runs on a different port
+
+        let uploading = false;
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                showAlert("Please select a file to upload.");
+                return;
+            }
+
+            uploading = true;
+            updateUploadButton();
+            showProgressBar(0);
+            hideAlert();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
+                }
+
+                const data = await response.json();
+                console.log('Upload complete');
+                uploading = false;
+                updateUploadButton();
+                fetchFiles();
+                fileInput.value = '';
+                showAlert("File uploaded successfully!", "success");
+            } catch (error) {
+                console.error('Error:', error);
+                uploading = false;
+                updateUploadButton();
+                showAlert(`Error uploading file: ${error.message}`);
+            }
+        }
+
+        function showProgressBar(progress) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress.toFixed(2)}%`;
+        }
+
+        function updateUploadButton() {
+            const uploadButton = document.getElementById('uploadButton');
+            uploadButton.disabled = uploading;
+        }
+
+        function showAlert(message, type = "error") {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertMessage = document.getElementById('alertMessage');
+            alertContainer.classList.remove('hidden');
+            alertMessage.textContent = message;
+
+            if (type === "success") {
+                alertContainer.querySelector('div').classList.remove('bg-red-100', 'border-red-400', 'text-red-700');
+                alertContainer.querySelector('div').classList.add('bg-green-100', 'border-green-400', 'text-green-700');
+                alertContainer.querySelector('strong').textContent = "Success!";
+            } else {
+                alertContainer.querySelector('div').classList.remove('bg-green-100', 'border-green-400', 'text-green-700');
+                alertContainer.querySelector('div').classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+                alertContainer.querySelector('strong').textContent = "Error!";
+            }
+        }
+
+        function hideAlert() {
+            const alertContainer = document.getElementById('alertContainer');
+            alertContainer.classList.add('hidden');
+        }
+
+        async function fetchFiles() {
+            try {
+                const response = await fetch(`${API_URL}/files`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const files = await response.json();
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '';
+
+                files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.className = 'px-6 py-2 border-b border-gray-200 w-full rounded-t-lg';
+                    li.innerHTML = `
+                        <div class="flex items-center">
+                            <i data-lucide="file-list" class="h-5 w-5 mr-2 text-blue-500"></i>
+                            <span>${file}</span>
+                        </div>
+                    `;
+                    fileList.appendChild(li);
+                });
+
+                if (files.length === 0) {
+                    fileList.innerHTML = '<p class="text-gray-500 p-4">No files uploaded yet.</p>';
+                }
+
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error fetching files:', error);
+                showAlert(`Error fetching files: ${error.message}`);
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '<p class="text-red-500 p-4">Failed to load file list. Please try again later.</p>';
+            }
+        }
+
+        // Initial file fetch
+        fetchFiles();
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
